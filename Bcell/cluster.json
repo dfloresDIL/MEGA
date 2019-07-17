@@ -1,0 +1,33 @@
+{
+    "__default__":
+    {
+        "project"  : "todd.prjc",
+        "queue"  : "short.qc",
+	"name" : "Bcell.{rule}"
+    },
+    "frip":
+    {
+	"project"  : "todd.prja",
+        "queue"  : "short.qa"
+    },
+    "counts":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "idr":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "macs2pseudorep" :
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "feats":
+    {
+	"project"  : "todd.prja",
+        "queue"  : "short.qa"
+    }
+}
