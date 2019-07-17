@@ -1,37 +1,26 @@
-## Welcome to GitHub Pages
+# MEGA ATACseq
 
-You can use the [editor on GitHub](https://github.com/dfloresDIL/MEGA/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+This is the GitHub page for the MEGA ATACseq Workflow, developed at the [Wellcome Centre for Human Genentics](https://www.well.ox.ac.uk/) in [Oxford](http://www.ox.ac.uk/). It is an automated analysis workflow for the following datasets.
+- B cells
+- CD4 Cells 
+- CD25 Cells
+It also includes two workflows for the following external datasets:
+- Pritchard Stanford's dataset: [Landscape of stimulation-responsive chromatin across diverse human immune cells](https://doi.org/10.1101/409722)
+- Ackermann University of Pennsylvania's dataset: [Integration of ATAC-seq and RNA-seq identifies human alpha cell and beta cell signature genes](https://doi.org/10.1016/j.molmet.2016.01.002)
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+## Snakemake
 
-### Markdown
+The different workflows have been implemented with [Snakemake](https://snakemake.readthedocs.io/en/stable/). There is a directory for each one of the datasets with a _snakefile_ that describes the workflow.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+The _snakefiles_ will allow to run the workflows in a variety of computing environments. In our case, it is a SGE cluster. Most probably you will have to make a few modifications to the some of the scripts. Please read the documentation above for more information.
 
-```markdown
-Syntax highlighted code block
+## Conda
 
-# Header 1
-## Header 2
-### Header 3
+In order to ensure reproducibility, we have used [conda](https://docs.conda.io/en/latest/). You need to have conda installed somewhere in your PATH. The software packages and its versions are specified as part of the workflow and _Snakemake_ will download them and create the conda environments for you. You will need a working internet connection on the node you are submitting your jobs.
 
-- Bulleted
-- List
+## Citation
 
-1. Numbered
-2. List
+A useful link with the publication will appear here soon.
 
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/dfloresDIL/MEGA/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+## Acknoledgements
+Computation used the Oxford Biomedical Research Computing (BMRC) facility, a joint development between the Wellcome Centre for Human Genetics and the Big Data Institute supported by Health Data Research UK and the NIHR Oxford Biomedical Research Centre. Financial support was provided by the Wellcome Trust Core Award Grant Number 203141/Z/16/Z. The views expressed are those of the author(s) and not necessarily those of the NHS, the NIHR or the Department of Health.
