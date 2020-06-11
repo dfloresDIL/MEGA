@@ -1,0 +1,21 @@
+fastq_ftp	sample_title
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/006/SRR8285046/SRR8285046.fastq.gz	EndoC-βH1 control rep 1
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/007/SRR8285047/SRR8285047.fastq.gz	EndoC-βH1 control rep 2
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/008/SRR8285048/SRR8285048.fastq.gz	EndoC-βH1 control rep 3
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/009/SRR8285049/SRR8285049.fastq.gz	EndoC-βH1 cytokine-treated rep 1
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/000/SRR8285050/SRR8285050.fastq.gz	EndoC-βH1 cytokine-treated rep 2
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/001/SRR8285051/SRR8285051.fastq.gz	EndoC-βH1 cytokine-treated rep 3
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/002/SRR8285052/SRR8285052.fastq.gz	Human islet control rep HI19
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/003/SRR8285053/SRR8285053.fastq.gz	Human islet control rep HI22
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/004/SRR8285054/SRR8285054.fastq.gz	Human islet control rep HI24
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/005/SRR8285055/SRR8285055.fastq.gz	Human islet cytokine-treated rep HI19
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/006/SRR8285056/SRR8285056.fastq.gz	Human islet cytokine-treated rep HI22
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR828/007/SRR8285057/SRR8285057.fastq.gz	Human islet cytokine-treated rep HI24
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/000/SRR9304200/SRR9304200.fastq.gz	EndoC-βH1 control rep 4
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/001/SRR9304201/SRR9304201.fastq.gz	EndoC-βH1 control rep 5
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/002/SRR9304202/SRR9304202.fastq.gz	EndoC-βH1 cytokine-treated rep 4
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/003/SRR9304203/SRR9304203.fastq.gz	EndoC-βH1 cytokine-treated rep 5
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/004/SRR9304204/SRR9304204.fastq.gz	Human islet control rep HI42
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/005/SRR9304205/SRR9304205.fastq.gz	Human islet control rep HI44
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/006/SRR9304206/SRR9304206.fastq.gz	Human islet cytokine-treated rep HI42
+ftp.sra.ebi.ac.uk/vol1/fastq/SRR930/007/SRR9304207/SRR9304207.fastq.gz	Human islet cytokine-treated rep HI44

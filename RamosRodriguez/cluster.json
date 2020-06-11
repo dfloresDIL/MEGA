@@ -1,0 +1,10 @@
+{
+    "__default__":
+    {
+        "project"  : "todd.prjc",
+        "queue"  : "short.qc",
+	"resources" : "-pe shmem {threads}",
+	"name" : "becel.{rule}"
+    }
+}
+
