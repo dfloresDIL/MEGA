@@ -2,7 +2,8 @@
 
 This is the GitHub page for the MEGA ATACseq Workflow, developed at the [Wellcome Centre for Human Genentics](https://www.well.ox.ac.uk/) in [Oxford](http://www.ox.ac.uk/). It is an automated analysis workflow for the following datasets.
 - B cells
-- CD4 Cells 
+- CD4 Cells
+
 It also includes two workflows for the following external datasets:
 - Pritchard (Stanford University) dataset: [Landscape of stimulation-responsive chromatin across diverse human immune cells](https://doi.org/10.1101/409722)
 - RamosRodriguez (Endocrine Regulatory Genomics Laboratory, Germans Trias i Pujol University Hospital and Research Institute, Badalona, Spain) dataset: [The impact of proinflammatory cytokines on the β-cell regulatory landscape provides insights into the genetics of type 1 diabetes](https://www.nature.com/articles/s41588-019-0524-6)
