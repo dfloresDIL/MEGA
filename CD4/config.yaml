@@ -1,0 +1,32 @@
+STATUS:
+  - NACT
+  - ACT
+DONORS:
+  - Donor1
+  - Donor2
+
+SAMPLEHASH:
+  NACT_Donor1: Sample_7_Cutler_S1_L001
+  ACT_Donor1: Sample_8_Cutler_S2_L001
+  NACT_Donor2: Sample_9_Cutler_S3_L001
+  ACT_Donor2: Sample_10_Cutler_S4_L001
+
+CTYPEHASH:
+  NACT:
+    - NACT_Donor1
+    - NACT_Donor2
+  ACT:
+    - ACT_Donor1
+    - ACT_Donor2
+    
+DEFAULTBUILD: GRCh38
+
+REFS:
+  GRCh37: GRCh37/GRCh37.primary_assembly.genome.fa.gz
+  GRCh38: GRCh38.primary_assembly.genome.fa.gz
+
+# See this: https://deeptools.readthedocs.io/en/develop/content/feature/effectiveGenomeSize.html
+# For 50bp reads, these are the given values
+EGS:
+  GRCh37: 2685511504
+  GRCh38: 2701495761

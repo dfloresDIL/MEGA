@@ -1,0 +1,2 @@
+study_accession	sample_accession	experiment_accession	run_accession	scientific_name	instrument_model	library_layout	fastq_md5	fastq_ftp
+PRJNA387502	SAMN07156098	SRX2843570	SRR5585657	Homo sapiens	Illumina MiSeq	PAIRED	73a4fe14eef0804d4ccd41c0b3921328;ecf5a742e9778d01080ed2b2a2a49b62	ftp.sra.ebi.ac.uk/vol1/fastq/SRR558/007/SRR5585657/SRR5585657_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR558/007/SRR5585657/SRR5585657_2.fastq.gz

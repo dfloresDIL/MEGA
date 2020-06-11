@@ -1,0 +1,33 @@
+{
+    "__default__":
+    {
+        "project"  : "todd.prjc",
+        "queue"  : "short.qc",
+	"name" : "Foo.{rule}"
+    },
+    "frip":
+    {
+	"project"  : "todd.prja",
+        "queue"  : "short.qa"
+    },
+    "counts":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "idr":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "feats":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    },
+    "tsse":
+    {
+	"project"  : "todd.prjb",
+        "queue"  : "short.qb"
+    }
+}

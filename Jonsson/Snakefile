@@ -1,0 +1,434 @@
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
+HTTP = HTTPRemoteProvider()
+
+configfile: "config.yaml"
+
+## Paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6113540/
+## Title: A Transcriptomic and Epigenomic Comparison of Fetal and Adult Human Cardiac Fibroblasts
+##        Reveals Novel Key Transcription Factors in Adult Cardiac Fibroblasts
+## The studies are:
+##        SRX2843570 - ATAC-seq of Human Fetal Cardiac Fibroblast
+##        SRX2843571 - ATAC-seq of Human Adult Cardiac Fibroblast
+
+f = open("auxfiles/SRX2843570.txt")
+f.readline() # The first line is the header
+line = f.readline()
+line = line.rstrip("\n")
+recordsFetal = line.split("\t")
+f.close()
+f = open("auxfiles/SRX2843571.txt")
+f.readline() # The first line is the header
+line = f.readline()
+line = line.rstrip("\n")
+recordsAdult = line.split("\t")
+f.close()
+#
+samples2links = { "HumanCardiacFibroblast_Fetal": recordsFetal[8].split(";"),
+                 "HumanCardiacFibroblast_Adult": recordsAdult[8].split(";") }
+samples2md5 = { "HumanCardiacFibroblast_Fetal": recordsFetal[7].split(";"),
+                 "HumanCardiacFibroblast_Adult": recordsAdult[7].split(";") }
+
+SAMPLES = samples2links.keys()
+BUILDS = config["REFS"].keys()
+DEFAULTBUILD = config["DEFAULTBUILD"]
+MAPSTEPS = ["mm2", "rdup"]
+NONMAPSTEPS = ["fqc", "counts"]
+
+# Pritchard's ATACseq data (Stanford)
+subworkflow pritchard:
+    workdir: "../pritchard"
+    snakefile: "../pritchard/Snakefile"
+    configfile: "../pritchard/config.yaml"
+
+localrules: all, download, multiqc_counts, multiqc_map, multiqc_fqc
+
+rule all:
+    input: bigwigs = expand("bigwigs/{sample}.{build}.bw", sample=SAMPLES, build=BUILDS),
+           bedgraphs = expand("bedgraphs/{sample}.{build}.rpkm.bedGraph", sample=SAMPLES, build=BUILDS),
+           multiqc = expand("multiqc/{mqc}/multiqc_report.html", mqc=NONMAPSTEPS),
+           multiqc_map = expand("multiqc/{step}/{build}/multiqc_report.html", step=MAPSTEPS, build=BUILDS),
+           tsse = "tsse/HumanCardiacFibroblast.txt",
+           frip = expand("frip/{sample}.tab", sample = SAMPLES),
+           fingerprint = expand("fingerprint/HumanCardiacFibroblast.{build}.tsv", build=BUILDS),
+           counts = "counts/counts.txt"
+
+localrules: all, download
+
+rule multiqc_counts:
+    input: "counts/counts.txt.summary"
+    output: "multiqc/counts/multiqc_report.html"
+    log: e = "multiqc/counts/multiqc.e.log",
+         o = "multiqc/counts/multiqc.o.log"
+    threads: 1
+    params: outputdir="multiqc/counts"
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          export LC_ALL=en_GB.utf8
+          multiqc -f -o {params.outputdir} counts   
+          """
+
+rule bedgraphs:
+    input: bam = "rdup/{sample}.{build}.bam",
+           bai = "rdup/{sample}.{build}.bai",
+           bed = pritchard("feats/feats.bed")
+    output: bedgraph = "bedgraphs/{sample}.{build}.rpkm.bedGraph",
+            interbam = temp("bedgraphs/{sample}.{build}.intersect.bam"),
+            interbai = temp("bedgraphs/{sample}.{build}.intersect.bai")
+    log: o = "bedgraphs/{sample}.{build}.o.log",
+         e = "bedgraphs/{sample}.{build}.e.log"
+    threads: 1
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          SCALE=$(bc <<< "scale=6;1000000/$(samtools view -f 0 -c {input.bam})")
+          bedtools intersect -a {input.bam} -b {input.bed} > {output.interbam}
+          samtools index {output.interbam} {output.interbai}
+          bedtools genomecov -trackline -ibam {output.interbam} -bg -scale $SCALE > {output.bedgraph}
+          """
+          
+# We count just for the default build
+rule counts:
+    input: bams = expand("rdup/{sample}.{build}.bam", sample=SAMPLES, build=DEFAULTBUILD),
+           bais = expand("rdup/{sample}.{build}.bai", sample=SAMPLES, build=DEFAULTBUILD),
+           saf = pritchard("feats/feats.saf")
+    output: count = "counts/counts.txt",
+            summary = "counts/counts.txt.summary"
+    log:    o = "counts/counts.o.log",
+            e = "counts/counts.e.log"
+    threads: 2
+    benchmark: "counts/counts.benchmark"
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          featureCounts -T 2 -p -C -a {input.saf} -F SAF -o {output.count} {input.bams}
+          """
+          
+rule fingerprint:
+    input: bams = lambda wc: expand("rdup/{sample}.{build}.bam", sample=SAMPLES, build=wc.build),
+           bais = lambda wc: expand("rdup/{sample}.{build}.bai", sample=SAMPLES, build=wc.build)
+    output: png = "fingerprint/HumanCardiacFibroblast.{build}.png",
+            qcmetrics = "fingerprint/HumanCardiacFibroblast.{build}.tsv",
+            rawcounts = "fingerprint/HumanCardiacFibroblast.{build}.raw",
+            blacklist = temp("fingerprint/HumanCardiacFibroblast.{build}.blacklist.bed")
+    log: e = "fingerprint/HumanCardiacFibroblast.{build}.e.log",
+         o = "fingerprint/HumanCardiacFibroblast.{build}.o.log"
+    threads: 3
+    benchmark: "fingerprint/HumanCardiacFibroblast.{build}.benchmark"
+    params: plotTitle = '"HumanCardiacFibroblast Fingerprint"',
+            plotLabels = lambda wc: " ".join(SAMPLES),
+            bamfileforblacklist = lambda wc, input: input.bams[0] # Any bam will do, let's use the first one to create a blacklist of contigs and mithocondrial reads
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          samtools view -H {params.bamfileforblacklist} | \
+            awk -v OFS='\t' '$1 == "@SQ" && $2 ~ /SN:chrM|SN:GL/ {{split($2,a,":");split($3,b,":");print a[2],0,b[2]}}' > {output.blacklist}
+          plotFingerprint -b {input.bams} -p2 -T {params.plotTitle} --labels {params.plotLabels} -e --centerReads \
+            -o {output.png} --outQualityMetrics {output.qcmetrics} -bl {output.blacklist} --outRawCounts {output.rawcounts}
+          """
+
+# Fraction of reads in peaks, only for the default build
+rule frip:
+    input: bams = lambda wc: "rdup/{sample}.{build}.bam".format(sample=wc.sample, build=DEFAULTBUILD),
+           bais = lambda wc: "rdup/{sample}.{build}.bai".format(sample=wc.sample, build=DEFAULTBUILD),
+           beds = "idr/{sample}.bed"
+    output: png = "frip/{sample}.png",
+            tab = "frip/{sample}.tab"
+    log: e = "frip/{sample}.e.log",
+         o = "frip/{sample}.o.log"
+    threads: 1
+    benchmark: "frip/{sample}.benchmark"
+    params: plotTitle='"{sample} FRiP"',
+            plotLabels= lambda wc: wc.sample.split("_")[1],
+            regionLabels="HumanCardiacFibroblast_Peaks"
+    conda: "envs/conda.yaml"   
+    shell:
+           """
+           plotEnrichment -T {params.plotTitle} -b {input.bams} \
+                          --labels {params.plotLabels} --BED {input.beds} \
+                          --regionLabels {params.regionLabels} -o {output.png} \
+                          --outRawCounts {output.tab}
+           """         
+
+# Calculate the IDR between two replicates (donors)
+rule idr:
+    input: narrowPeaks = lambda wc: expand("macs2pseudorep/{sample}.{pr}_peaks.narrowPeak", sample=wc.sample, pr=["pr1","pr2"])
+    output: txt = "idr/{sample}.txt",
+            png = "idr/{sample}.txt.png",
+            bed = "idr/{sample}.bed",
+            plot = "idr/{sample}.png"
+    log: e = "idr/{sample}.e.log",
+         o = "idr/{sample}.o.log"
+    threads: 1
+    benchmark: "idr/{sample}.benchmark"
+    params: idrcutoff=1.30103 # -log10(0.05) = 1.30103
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          idr --samples {input.narrowPeaks} --input-file-type narrowPeak --random-seed $RANDOM \
+              --plot --verbose --output-file {output.txt}
+          # Filter the peaks by IDR cutoff and create a bed file
+          awk -v OFS='\\t' -v ICO={params.idrcutoff} '$12 >= ICO {{print $1,$2,$3}}' {output.txt} | sort -k1,1 -k2,2n > {output.bed}
+          # Create the IDR plot
+          Rscript --vanilla scripts/idrPlot.R {output.txt} {output.plot}
+          """
+           
+rule macs2pseudorep:
+    input: bam = "downsample/{sample}.{pr}.bam",
+           bai = "downsample/{sample}.{pr}.bai"
+    output: narrowPeak = temp("macs2pseudorep/{sample}.{pr}_peaks.narrowPeak"),
+            xls = temp("macs2pseudorep/{sample}.{pr}_peaks.xls"),
+            summits = temp("macs2pseudorep/{sample}.{pr}_summits.bed")
+    log: e = "macs2pseudorep/{sample}.{pr}.e.log",
+         o = "macs2pseudorep/{sample}.{pr}.o.log"
+    benchmark: "macs2pseudorep/{sample}.{pr}.benchmark"
+    threads: 1
+    params: output_name="macs2pseudorep/{sample}.{pr}"
+    conda: "envs/conda27.yaml"
+    shell:
+           """
+           macs2 callpeak -t {input.bam} -f BAMPE -g hs -n {params.output_name} --nomodel --shift 37 --extsize 73 --keep-dup all --seed $RANDOM
+           """
+
+rule downsample:
+    input: bam = lambda wc: "rdup/{sample}.{build}.bam".format(sample = wc.sample, build = DEFAULTBUILD),
+           bai = lambda wc: "rdup/{sample}.{build}.bai".format(sample = wc.sample, build = DEFAULTBUILD)
+    output: bam = temp("downsample/{sample}.{pr}.bam"),
+            bai = temp("downsample/{sample}.{pr}.bai")
+    log: e = "downsample/{sample}.{pr}.e.log",
+         o = "downsample/{sample}.{pr}.o.log"
+    benchmark: "downsample/{sample}.{pr}.benchmark"
+    threads: 1
+    conda: "envs/conda.yaml"
+    params: prob= 0.65
+    shell:
+           """
+           picard -Xmx10G DownsampleSam I={input.bam} O={output.bam} RANDOM_SEED=$RANDOM PROBABILITY={params.prob} VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true
+           """
+
+rule tsse:
+    input: bigwigs = lambda wc: expand("bigwigs/{sample}.{build}.bw", sample = SAMPLES, build = DEFAULTBUILD),
+           tssList = "auxfiles/tss.hg38.bed"
+    output: matrix = "tsse/HumanCardiacFibroblast.tar.gz",
+            txt = "tsse/HumanCardiacFibroblast.txt",
+            png = "tsse/HumanCardiacFibroblast.png"
+    log: e = "tsse/HumanCardiacFibroblast.e.log",
+         o = "tsse/HumanCardiacFibroblast.o.log"
+    benchmark: "tsse/HumanCardiacFibroblast.benchmark"
+    threads: 3
+    params: binsize = 1,
+            egs = config["EGS"][DEFAULTBUILD],
+            samplesLabel = lambda wc: " ".join(SAMPLES)
+    conda: "envs/conda.yaml"      
+    shell:
+           """
+           export OMP_NUM_THREADS=1
+           # -a and -b params are defined by the definition of the TSS Enrichment Score: 
+           # https://www.encodeproject.org/data-standards/terms/
+           computeMatrix reference-point \
+                          -S {input.bigwigs} \
+                          -R {input.tssList} \
+                          -a 1000 \
+                          -b 1000 \
+                          --outFileName {output.matrix} \
+                          --outFileNameMatrix {output.txt} \
+                          --referencePoint TSS \
+                          --skipZeros \
+                          --numberOfProcessors 1
+           plotProfile --matrixFile {output.matrix} \
+                        --plotFileFormat png \
+                        --outFileName {output.png} \
+                        --samplesLabel {params.samplesLabel} \
+                        --regionsLabel '' \
+                        --perGroup
+           """
+
+rule bigwigs:
+    input: bam = "rdup/{sample}.{build}.bam",
+           bai = "rdup/{sample}.{build}.bai"
+    output: "bigwigs/{sample}.{build}.bw"
+    log: e = "bigwigs/{sample}.{build}.e.log",
+         o = "bigwigs/{sample}.{build}.o.log"
+    params: binsize = 1,
+            egs  = lambda wc: config["EGS"][wc.build],
+            norm = "RPGC"
+    benchmark: "bigwigs/{sample}.{build}.benchmark"
+    threads: 1
+    conda: "envs/conda.yaml"    
+    shell:
+           """
+           export OMP_NUM_THREADS=1
+           bamCoverage --bam {input.bam} \
+                       -o {output} \
+                       --effectiveGenomeSize {params.egs} \
+                       --normalizeUsing {params.norm} \
+                       --binSize {params.binsize} \
+                       --ignoreForNormalization chrX chrY chrM \
+                       --centerReads \
+                        -p {threads}
+           """
+
+rule multiqc_map:
+    input:  insertsizemetrics = lambda wc: expand("{step}/{sample}.{build}.InsertSizeMetrics", step=wc.step,build=wc.build, sample = SAMPLES),
+            alignmentsummarymetrics = lambda wc: expand("{step}/{sample}.{build}.AlignmentSummaryMetrics", step=wc.step,build=wc.build, sample = SAMPLES),
+            flagstat = lambda wc: expand("{step}/{sample}.{build}.flagstat", step=wc.step,build=wc.build, sample = SAMPLES),
+            idxstats = lambda wc: expand("{step}/{sample}.{build}.idxstats", step=wc.step,build=wc.build, sample = SAMPLES),
+            # Only include .*rdup_metric if the input step is rdup :
+            metrics = lambda wc: expand("{step}/{sample}.{build}.rdup_metrics", step=wc.step,build=wc.build, sample = SAMPLES) if wc.step == "rdup" else [] 
+    output: "multiqc/{step}/{build}/multiqc_report.html"
+    log: e = "multiqc/{step}/multiqc.{build}.e.log",
+         o = "multiqc/{step}/multiqc.{build}.o.log"
+    threads: 1
+    params: outputdir="multiqc/{step}/{build}"
+    conda: "envs/conda.yaml"
+    shell:
+           """
+           export LC_ALL=en_GB.utf8
+           TMPDIR=$(mktemp -d {params.outputdir}/XXX)
+           ln {input} $TMPDIR
+           multiqc -f -o {params.outputdir} $TMPDIR
+           rm -r $TMPDIR
+           """
+
+rule map_stats:
+    input: bam = "{step}/{name}.{build}.bam",
+           bai = "{step}/{name}.{build}.bai",
+           R = "mm2_index/{build}.fa"
+    output: insertsizemetrics = "{step}/{name}.{build}.InsertSizeMetrics",
+            insertsizemetricspdf = "{step}/{name}.{build}.InsertSizeMetrics.pdf",
+            alignmentsummarymetrics = "{step}/{name}.{build}.AlignmentSummaryMetrics",
+            flagstat = "{step}/{name}.{build}.flagstat",
+            idxstats = "{step}/{name}.{build}.idxstats"
+    log: e = "{step}/{name}.{build}.stats.e.log",
+         o = "{step}/{name}.{build}.stats.o.log"
+    threads: 1
+    conda: "envs/conda.yaml"
+    shell:
+          """
+          picard -Xmx7G \
+                   CollectInsertSizeMetrics \
+                   INPUT={input.bam} \
+                   OUTPUT={output.insertsizemetrics} \
+                   HISTOGRAM_FILE={output.insertsizemetricspdf}
+          picard -Xmx7G \
+                   CollectAlignmentSummaryMetrics \
+                   INPUT={input.bam} \
+                   OUTPUT={output.alignmentsummarymetrics} \
+                   R={input.R}
+          samtools flagstat {input.bam} > {output.flagstat}
+          samtools idxstats {input.bam} > {output.idxstats}
+          """           
+
+rule rdup:
+    input:  bam = "mm2/{sample}.{build}.bam",
+             bai = "mm2/{sample}.{build}.bai"
+    output: bam = "rdup/{sample}.{build}.bam",
+            bai = "rdup/{sample}.{build}.bai",
+            metrics = "rdup/{sample}.{build}.rdup_metrics"
+    log:    o = "rdup/{sample}.{build}.o.log",
+            e = "rdup/{sample}.{build}.e.log"
+    threads: 1
+    benchmark: "rdup/{sample}.{build}.benchmark"
+    conda: "envs/conda.yaml"
+    shell:
+            """
+            picard -Xmx7G \
+                   MarkDuplicatesWithMateCigar \
+                   INPUT={input.bam} \
+                   OUTPUT={output.bam} \
+                   METRICS_FILE={output.metrics} \
+                   VALIDATION_STRINGENCY=LENIENT \
+                   REMOVE_DUPLICATES=true \
+                   MINIMUM_DISTANCE=250 \
+                   CREATE_INDEX=true
+            """
+
+rule mm2:
+    input: reads1 = "data/{name}_1.fastq.gz",
+           reads2 = "data/{name}_2.fastq.gz",
+           mmi = "mm2_index/{build}.mmi",
+           R = "mm2_index/{build}.fa"
+    output: bam = temp("mm2/{name}.{build}.bam"),
+            bai = temp("mm2/{name}.{build}.bai"),
+            bamunsort = temp("mm2/{name}.{build}.unsort.bam")
+    log: o = "mm2/{name}.{build}.o.log",
+         e = "mm2/{name}.{build}.e.log"     
+    benchmark: "mm2/{name}.{build}.benchmark"
+    threads: 4
+    conda: "envs/conda.yaml"
+    shell:
+           """
+           minimap2 -t {threads} -ax sr {input.mmi} {input.reads1} {input.reads2} | \
+           samtools view -h -u -q 30 > {output.bamunsort}
+           picard -Xmx11G \
+                  SortSam \
+                  INPUT={output.bamunsort} \
+                  OUTPUT={output.bam} \
+                  SORT_ORDER=coordinate \
+                  CREATE_INDEX=true \
+                  VALIDATION_STRINGENCY=LENIENT
+           """
+           
+rule mm2_index:
+    input: lambda wc: config["REFS"][wc.build]
+    output: mmi = temp("mm2_index/{build}.mmi"),
+            fa = temp("mm2_index/{build}.fa")
+    log: o="mm2_index/mm2_index.{build}.o.log",
+         e="mm2_index/mm2_index.{build}.e.log"
+    benchmark: "mm2_index/{build}.benchmark"
+    threads: 4
+    conda: "envs/conda.yaml"
+    shell:
+           """
+           minimap2 -t {threads} -x sr -d {output.mmi} {input}
+           zcat {input} > {output.fa}
+           """
+
+rule multiqc_fqc:
+    input: expand("fqc/{sample}_{R}_fastqc.zip",sample=SAMPLES,R=["1","2"])
+    output: "multiqc/fqc/multiqc_report.html"
+    log: e = "multiqc/fqc/multiqc.e.log",
+         o = "multiqc/fqc/multiqc.o.log"
+    threads: 1
+    params: outputdir="multiqc/fqc"
+    conda:  "envs/conda.yaml"
+    shell:
+           """
+           export LC_ALL=en_GB.utf8
+           multiqc -o {params.outputdir} fqc/
+           """
+
+rule fqc:
+    input:  "data/{name}.fastq.gz",
+    output: html = "fqc/{name}_fastqc.html",
+            zip = "fqc/{name}_fastqc.zip"
+    log:    o = "fqc/{name}.o.log",
+            e = "fqc/{name}.e.log"
+    threads: 1
+    conda:  "envs/conda.yaml"  
+    shell:
+            """
+            fastqc {input} -o fqc
+            """
+           
+rule download:
+    input: fq1 = lambda wc: HTTP.remote(samples2links[wc.sample][0], insecure=True, keep_local=True),
+           fq2 = lambda wc: HTTP.remote(samples2links[wc.sample][1], insecure=True, keep_local=True)
+    output: fq1 = "data/{sample}_1.fastq.gz",
+            fq2 = "data/{sample}_2.fastq.gz",
+            md5 = "data/{sample}.md5"
+    log: o = "data/{sample}.o.log",
+         e = "data/{sample}.e.log"
+    threads: 1
+    conda: "envs/conda.yaml"
+    params: md5_1 = lambda wc: samples2md5[wc.sample][0],
+            md5_2 = lambda wc: samples2md5[wc.sample][1]
+    shell:                     
+            """
+            mv {input.fq1} {output.fq1}
+            mv {input.fq2} {output.fq2}
+            echo "{params.md5_1}  {output.fq1}" > {output.md5}
+            echo "{params.md5_2}  {output.fq2}" >> {output.md5}
+            md5sum -c {output.md5}
+            """
